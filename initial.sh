@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 # === CONFIG ===
 VM1_NAME="vm1"

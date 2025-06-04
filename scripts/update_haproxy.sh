@@ -10,7 +10,7 @@ MARKER_END="# END AUTOSCALER SERVERS"
 
 function reload_haproxy {
     if haproxy -c -f "$HAPROXY_CFG"; then
-        systemctl reload haproxy
+        haproxy -f "$HAPROXY_CFG" -sf $(pidof haproxy)
         echo "HAProxy reloaded successfully."
     else
         echo "HAProxy config test failed! Not reloading."
