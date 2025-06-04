@@ -4,7 +4,7 @@ set -euo pipefail
 
 # === CONFIG ===
 VM1_NAME="vm1"
-VM1_IP="192.168.122.101"  # ✅ Match with HAProxy and cloud-init config
+VM1_IP="192.168.122.101" 
 HAPROXY_CONFIG="haproxy/haproxy.cfg"
 AUTOSCALER_SCRIPT="scripts/autoscaler.sh"
 

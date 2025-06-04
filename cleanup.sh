@@ -13,7 +13,7 @@ pkill -f autoscaler.sh || true
 echo "Killing HAProxy (if running)..."
 sudo pkill haproxy || true
 
-# === Cleanup VMs ===
+# Cleanup VMs 
 for vm in vm1 vm2; do
   echo "Destroying VM: $vm"
   sudo virsh destroy "$vm" 2>/dev/null || true
@@ -21,7 +21,7 @@ for vm in vm1 vm2; do
   sudo rm -f "${IMAGE_DIR}/${vm}.qcow2"
 done
 
-# === Cleanup configs and logs ===
+# Cleanup configs and logs
 echo "Removing generated cloud-init config..."
 rm -f "$CLOUDINIT_CONFIG"
 
