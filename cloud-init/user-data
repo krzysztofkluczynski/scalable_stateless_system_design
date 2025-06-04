@@ -31,7 +31,7 @@ write_files:
 
       [Service]
       ExecStart=/usr/bin/python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
-      WorkingDirectory=/opt/fastapi
+      WorkingDirectory=/opt/fastapi/fastAPI
       Restart=always
       StandardOutput=append:/var/log/fastapi.log
       StandardError=append:/var/log/fastapi.log

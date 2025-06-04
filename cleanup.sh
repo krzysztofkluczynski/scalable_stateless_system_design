@@ -28,8 +28,8 @@ rm -f "$CLOUDINIT_CONFIG"
 echo "Removing generated cloud-init seed images..."
 sudo rm -f /var/lib/libvirt/images/seed-vm1.img /var/lib/libvirt/images/seed-vm2.img
 
-echo "Removing dynamic HAProxy entries..."
-sudo sed -i '/server vm[12]/d' "$HAPROXY_CONFIG" || true
+echo "Removing dynamic HAProxy entries between autoscaler markers..."
+sed -i '/# BEGIN AUTOSCALER SERVERS/,/# END AUTOSCALER SERVERS/ {/BEGIN AUTOSCALER SERVERS/b; /END AUTOSCALER SERVERS/b; d}' haproxy/haproxy.cfg
 
 echo "Removing autoscaler log..."
 rm -f "$LOG_FILE"
