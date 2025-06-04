@@ -1,55 +1,29 @@
 #!/bin/bash
 
-# Virtual machine configuration
-VM_NAME="alpine-vm"
-VM_DISK="alpine-vm.qcow2"
-VM_RAM="512"  # RAM for the VM (in MB)
-VM_CPUS="1"   # Number of CPUs
-DISK_SIZE="3G"  # Disk size (adjust based on your needs)
+set -e
 
-# Path to your already downloaded Alpine Linux image
-ALPINE_IMAGE_PATH="./alpine-minirootfs-3.17.0-x86_64.tar.gz"
-# Make sure the image file is downloaded before running the script
+# === CONFIG ===
+VM1_NAME="vm1"
+VM1_IP="192.168.122.101"  # ✅ Match with HAProxy and cloud-init config
+HAPROXY_CONFIG="haproxy/haproxy.cfg"
+AUTOSCALER_SCRIPT="scripts/autoscaler.sh"
 
-# Virtual machine IP (static IP or DHCP, depending on your config)
-VM_IP="192.168.122.10"
 
-# 1. Check if the Alpine image exists
-if [ ! -f "$ALPINE_IMAGE_PATH" ]; then
-  echo "Alpine image not found! Please download it separately and place it in the current directory."
-  exit 1
-fi
+echo "[1/4] Starting HAProxy..."
+sudo haproxy -f "$HAPROXY_CONFIG" &
+sleep 1
 
-# 2. Create the disk for the virtual machine
-echo "Creating disk for VM..."
-qemu-img create -f qcow2 $VM_DISK $DISK_SIZE
+echo "[2/4] Creating initial VM: $VM1_NAME ($VM1_IP)..."
+./scripts/create_vm.sh "$VM1_NAME" "$VM1_IP"
 
-# 3. Unpack the Alpine Linux image
-sudo mkdir -p /mnt/alpine
-sudo mount -o loop $ALPINE_IMAGE_PATH /mnt/alpine
-sudo cp -a /mnt/alpine/* ./  # Copy all contents to the new VM disk
-sudo umount /mnt/alpine
+echo "[3/4] Waiting for FastAPI to boot..."
+until curl -s "http://${VM1_IP}:8000" >/dev/null; do
+  echo "  ...waiting for FastAPI on ${VM1_IP}:8000"
+  sleep 2
+done
 
-# 4. Create the VM using QEMU
-echo "Creating the virtual machine..."
-qemu-system-x86_64 \
-  -m $VM_RAM \
-  -vcpus $VM_CPUS \
-  -hda $VM_DISK \
-  -boot d \
-  -cdrom /path/to/ubuntu.iso \  # Modify to actual ISO path
-  -network bridge=virbr0,model=virtio \
-  -nographic &  # Run the VM in the background
+echo "[4/4] Launching autoscaler in background..."
+mkdir -p logs
+nohup bash "$AUTOSCALER_SCRIPT" > logs/autoscaler.log 2>&1 &
 
-# 5. Wait for VM to boot, SSH access for installation
-echo "Waiting for VM to boot up... (Please give it a minute)"
-
-# 6. Install Python and FastAPI (inside VM)
-echo "Setting up Python and FastAPI..."
-# You will need to access the VM through a console or SSH here to install these dependencies.
-# Here's an example of commands you'd run inside the VM:
-sshpass -p 'your_password' ssh root@192.168.122.10 << EOF
-  apk update
-  apk add python3 py3-pip
-  pip3 install fastapi uvicorn
-EOF
+echo "System initialized. Access service at: http://localhost/"

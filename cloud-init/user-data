@@ -1,0 +1,51 @@
+#cloud-config
+hostname: fastapi-instance
+package_update: true
+package_upgrade: true
+
+packages:
+  - python3
+  - python3-pip
+  - git
+
+users:
+  # - default
+  - name: krzysiek
+    gecos: Ubuntu
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    shell: /bin/bash
+    lock_passwd: false
+    passwd: "$6$byhq9KAQibgGlKaW$1CispEj8VuUuDTFAYn4e95jHiYXg.zoWuaz21konNWYX39jg6G/bpe9yUcr2maqdYjeBWNBLw6yuCj9K/r2H/."  # password: krzysiek
+
+ssh_pwauth: true
+chpasswd:
+  expire: false
+
+write_files:
+  - path: /etc/systemd/system/fastapi.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=FastAPI Service
+      After=network.target
+
+      [Service]
+      ExecStart=/usr/bin/python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
+      WorkingDirectory=/opt/fastapi
+      Restart=always
+      StandardOutput=append:/var/log/fastapi.log
+      StandardError=append:/var/log/fastapi.log
+      User=root
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - bash -c "git clone https://github.com/krzysztofkluczynski/scalable_stateless_system_design.git /opt/fastapi >> /var/log/fastapi-setup.log 2>&1 || (echo 'Clone failed' >> /var/log/fastapi-setup.log; exit 1)"
+  - pip3 install fastapi uvicorn
+  - systemctl daemon-reexec
+  - systemctl daemon-reload
+  - systemctl enable fastapi
+  - systemctl start fastapi
+
+final_message: "FastAPI deployment finished."
