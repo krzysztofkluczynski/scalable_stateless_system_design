@@ -1,63 +1,73 @@
 #!/bin/bash
 
-THRESHOLD=20
-CHECK_INTERVAL=60
+BASE_THRESHOLD=10
+CHECK_INTERVAL=5
+CHECK_DURATION=15
+TRIES_THRESHOLD=$((CHECK_DURATION / CHECK_INTERVAL))
+MAX_VMS=3
 
-VM2_NAME="vm2"
-VM2_IP="192.168.122.102"
-API_ENDPOINT="http://192.168.122.101:8000/metrics"  # IP of vm1
+BASE_IP="192.168.122.10"
+HAPROXY_URL="http://localhost:9000/stats;csv"
+BACKEND_NAME="servers"
+RATE_COLUMN=34
 
-# Initial check if VM2 is running
-if virsh list --name | grep -q "$VM2_NAME"; then
-    vm_running=true
-else
-    vm_running=false
-fi
-
-MIN_ELAPSED=10 
-
+above_threshold_cnt=0
+below_threshold_cnt=0
+n_of_vms=1
 while true; do
     echo "Checking traffic..."
-    metrics=$(curl -s "$API_ENDPOINT")
-    requests=$(echo "$metrics" | jq '.requests')
-    elapsed=$(echo "$metrics" | jq '.elapsed_seconds')
 
-    # Skip if elapsed is too small
-    if (( $(echo "$elapsed < $MIN_ELAPSED" | bc -l) )); then
-        echo "Elapsed time $elapsed is too small (< $MIN_ELAPSED), skipping calculation"
-        sleep 2
+    line=$(curl -s "$HAPROXY_URL" | grep "^$BACKEND_NAME,BACKEND")
+
+    if [ -z "$line" ]; then
+        echo "Couldn't fetch rate."
+        sleep $CHECK_INTERVAL
         continue
     fi
 
-    # Avoid division by zero just in case
-    if (( $(echo "$elapsed == 0" | bc -l) )); then
-        echo "Elapsed time is zero, skipping calculation"
-        sleep "$CHECK_INTERVAL"
+    rate=$(echo "$line" | awk -F',' "{print \$$RATE_COLUMN}")
+
+    echo "Request rate = $rate req/s"
+
+    if (( rate < BASE_THRESHOLD * (n_of_vms - 1) )); then
+        ((below_threshold_cnt++))
+        echo "Rate below scale down threshold ($below_threshold_cnt/$TRIES_THRESHOLD)"
+    else
+        below_threshold_cnt=0
+        echo "Rate above scale down threshold"
+    fi
+
+    if (( below_threshold_cnt >= TRIES_THRESHOLD )); then
+        echo "Rate below scale down threshold for $CHECK_DURATION s, SCALING DOWN"
+        ./scripts/delete_vm.sh "vm$n_of_vms"
+        ./scripts/update_haproxy.sh remove "vm$n_of_vms" "$BASE_IP$n_of_vms"
+        ((n_of_vms--))
+        below_threshold_cnt=0
         continue
     fi
 
-    rpm=$(echo "scale=2; $requests * 60 / $elapsed" | bc) #TODO: BIERZE CZAS OD POCZATKU DZIALANIA PROGRAMU, TRZEBA PRZEMYSLEC I BRAC NP Z OSTATNIEJ MINUTY
-    echo "Requests per minute: $rpm"
-
-    if [ "$(echo "$rpm > $THRESHOLD" | bc -l)" -eq 1 ]; then
-        if ! $vm_running; then
-            echo "High traffic - scaling UP: creating $VM2_NAME"
-            ./scripts/create_vm.sh "$VM2_NAME" "$VM2_IP"
-            ./scripts/update_haproxy.sh add "$VM2_NAME" "$VM2_IP"
-            vm_running=true
-        else
-            echo "$VM2_NAME already running"
-        fi
-    elif [ "$(echo "$rpm < $THRESHOLD" | bc -l)" -eq 1 ]; then
-        if $vm_running; then
-            echo "Low traffic - scaling DOWN: deleting $VM2_NAME"
-            ./scripts/delete_vm.sh "$VM2_NAME"
-            ./scripts/update_haproxy.sh remove "$VM2_NAME" "$VM2_IP"
-            vm_running=false
-        else
-            echo "$VM2_NAME already stopped"
-        fi
+    if (( n_of_vms == MAX_VMS)); then
+        sleep $CHECK_INTERVAL
+        continue
     fi
 
-    sleep "$CHECK_INTERVAL"
+    if (( rate > BASE_THRESHOLD * n_of_vms )); then
+        ((above_threshold_cnt++))
+        echo "Rate above scale up threshold ($above_threshold_cnt/$TRIES_THRESHOLD)"
+    else
+        above_threshold_cnt=0
+        echo "Rate below scale up threshold"
+    fi
+
+    if (( above_threshold_cnt >= TRIES_THRESHOLD )); then
+        echo "Rate above scale up threshold for $CHECK_DURATION s, SCALING UP"
+        ((n_of_vms++))
+        ./scripts/create_vm.sh "vm$n_of_vms" "$BASE_IP$n_of_vms"
+        ./scripts/update_haproxy.sh add "vm$n_of_vms" "$BASE_IP$n_of_vms"
+        above_threshold_cnt=0
+    fi
+
+
+
+    sleep $CHECK_INTERVAL
 done

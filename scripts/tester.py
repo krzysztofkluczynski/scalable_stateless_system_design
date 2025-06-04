@@ -5,10 +5,10 @@ import threading
 import matplotlib.pyplot as plt
 
 
-MAX_VMS = 4
+MAX_VMS = 3
 HAPROXY_URL = "http://localhost/"
 REQUEST_TOUT = 0.2  # seconds
-EXPERIMENT_TIME = 30  # seconds
+EXPERIMENT_TIME = 240  # seconds
 UPDATE_INTERVAL = 1  # seconds
 
 
@@ -77,7 +77,7 @@ def request_spammer(url, rps, duration):
             # count += 1
         except Exception as e:
             print("!!! haproxy couldn't be reached !!!")
-            raise e
+            # raise e
         time.sleep(delay)
 
 
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     active_vms: list[str] = []
 
     spam_thr = threading.Thread(
-        target=request_spammer, args=(HAPROXY_URL, 20, EXPERIMENT_TIME)
+        target=request_spammer, args=(HAPROXY_URL, 25, EXPERIMENT_TIME)
     )
     spam_thr.start()
 
