@@ -14,7 +14,7 @@ echo "Killing HAProxy (if running)..."
 sudo pkill haproxy || true
 
 # Cleanup VMs 
-for vm in vm1 vm2; do
+for vm in vm1 vm2 vm3; do
   echo "Destroying VM: $vm"
   sudo virsh destroy "$vm" 2>/dev/null || true
   sudo virsh undefine "$vm" --remove-all-storage 2>/dev/null || true

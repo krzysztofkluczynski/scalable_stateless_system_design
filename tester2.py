@@ -8,7 +8,7 @@ import numpy as np
 MAX_VMS = 3
 HAPROXY_URL = "http://localhost/"
 REQUEST_TOUT = 0.2  # seconds
-EXPERIMENT_TIME = 150  # total experiment time in seconds, should match spam_schedule
+EXPERIMENT_TIME = 120  # total experiment time in seconds, should match spam_schedule
 UPDATE_INTERVAL = 1  # seconds
 
 # Differences from tester:
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     active_vms: list[str] = []
 
     spam_schedule = [
-        (25, 150)  # 25 RPS for 80s
+        (17 , 120)  # 25 RPS for 80s
         # ,(15, 80)  # 15 RPS for 80s
         # ,(25, 80)  # 25 RPS for 80s
     ]
