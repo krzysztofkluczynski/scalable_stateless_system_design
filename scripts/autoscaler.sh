@@ -49,7 +49,7 @@ while true; do
     # Always ensure vm1 is up
     ensure_vm_alive "vm1" "${BASE_IP}1"
 
-    # Ensure other active VMs are alive if they were ever seen before
+    # Ensure other active VMs are alive if they were ever seen before & s if they shoudl work according to traffic
     for ((i=2; i<=n_of_vms; i++)); do
         ensure_vm_alive "vm$i" "${BASE_IP}$i"
     done
